@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>TV Online</title>
+  <style>
+    /* RESET GLOBAL */
+    html, body {
+      background-color: #0a0b0e !important;
+      color: #ffffff !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      overflow: hidden !important;
+      box-sizing: border-box !important;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      padding: 2vh 3vw;
+    }
+
+    body.hide-cursor, body.hide-cursor * {
+      cursor: none !important;
+    }
+
+    /* REMOVER MARCA D'ÁGUA */
+    [class*="nattfly"], [id*="nattfly"], .powered-by, .watermark, .branding {
+      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+    }
+
+    /* CABEÇALHO DA GRADE */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #00e5ff;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    .info-bar {
+      font-size: 0.95rem;
+      color: #8e95a5;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #channel-count {
+      background: #16181e;
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 600;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* GRID DE CANAIS */
+    .tv-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 12px;
+      overflow-y: auto;
+      padding: 6px;
+      flex: 1;
+    }
+
+    .tv-grid::-webkit-scrollbar { width: 6px; }
+    .tv-grid::-webkit-scrollbar-thumb { background: #252a34; border-radius: 4px; }
+
+    .channel-card {
+      position: relative;
+      background-color: #16181e;
+      border-radius: 10px;
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      aspect-ratio: 16 / 10;
+      border: 2px solid transparent;
+      outline: none;
+      cursor: pointer;
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .channel-card:focus, .channel-card:hover {
+      border-color: #00e5ff;
+      transform: scale(1.05);
+      background-color: #212530;
+      box-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
+      z-index: 2;
+    }
+
+    .channel-number {
+      position: absolute;
+      top: 6px;
+      left: 8px;
+      font-size: 0.7rem;
+      color: #8e95a5;
+    }
+
+    footer {
+      text-align: center;
+      padding-top: 10px;
+      font-size: 0.8rem;
+      color: #8e95a5;
+      flex-shrink: 0;
+    }
+
+    /* PLAYER EM TELA CHEIA */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      display: none;
+      z-index: 999;
+    }
+
+    .modal-overlay.active {
+      display: block;
+    }
+
+    /* ELEMENTOS SOBREPOSTOS (INICIALMENTE OCULTOS) */
+    .overlay-ui {
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      pointer-events: none;
+    }
+
+    .modal-overlay.show-controls .overlay-ui {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .modal-header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      padding: 20px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 100%);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      color: #00e5ff;
+      font-size: 1.2rem;
+      font-weight: bold;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    }
+
+    .modal-controls {
+      position: absolute;
+      bottom: 25px;
+      right: 25px;
+      z-index: 20;
+      display: flex;
+      gap: 12px;
+    }
+
+    #iframe-container {
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    #iframe-container iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    .tv-btn {
+      background: rgba(22, 24, 30, 0.95);
+      color: #fff;
+      border: 2px solid transparent;
+      padding: 10px 18px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border-radius: 8px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .tv-btn:focus, .tv-btn:hover {
+      border-color: #00e5ff;
+      background: #00e5ff;
+      color: #000;
+      box-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
+    }
+
+    .btn-close {
+      background: rgba(180, 40, 40, 0.9);
+    }
+
+    .btn-close:focus, .btn-close:hover {
+      background: #ff4d4d;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">TV Online</div>
+    <div class="info-bar">
+      <span id="channel-count">0 canais</span>
+      <span id="clock">00:00</span>
+    </div>
+  </header>
+
+  <main class="tv-grid" id="channels-container"></main>
+
+  <footer>
+    Criado por - Cristiano Santos
+  </footer>
+
+  <!-- PLAYER -->
+  <div class="modal-overlay" id="player-modal">
+    <div class="modal-header overlay-ui">
+      <div class="modal-title" id="current-channel-title">Canal</div>
+    </div>
+
+    <div id="iframe-container"></div>
+
+    <div class="modal-controls overlay-ui">
+      <button class="tv-btn" id="btn-fullscreen" tabindex="0">⛶ Tela Cheia</button>
+      <button class="tv-btn btn-close" id="btn-close" tabindex="0">✖ Fechar</button>
+    </div>
+  </div>
+
+  <script>
+    // LISTA COMPLETA DOS CANAIS
+    const m3uRawData = `
+#EXTM3U
+#EXTINF:-1,TV Cultura
+https://sinalpublicoetv.vercel.app/?id=cultura
+#EXTINF:-1,SBT SP
+https://sinalpublicoetv.vercel.app/?id=sbtsp
+#EXTINF:-1,Globo SP
+https://sinalpublicoetv.vercel.app/?id=globosp
+#EXTINF:-1,Record SP
+https://sinalpublicoetv.vercel.app/?id=recordsp
+#EXTINF:-1,Rede TV
+https://sinalpublicoetv.vercel.app/?id=redetv
+#EXTINF:-1,Band SP
+https://sinalpublicoetv.vercel.app/?id=bandsp
+#EXTINF:-1,History
+https://sinalpublicoetv.vercel.app/?id=history
+#EXTINF:-1,History 2
+https://sinalpublicoetv.vercel.app/?id=history2
+#EXTINF:-1,Adult Swim
+https://sinalpublicoetv.vercel.app/?id=adultswim
+#EXTINF:-1,A&E
+https://sinalpublicoetv.vercel.app/?id=aie
+#EXTINF:-1,Bis
+https://sinalpublicoetv.vercel.app/?id=bis
+#EXTINF:-1,Multishow
+https://sinalpublicoetv.vercel.app/?id=multishow
+#EXTINF:-1,ESPN
+https://sinalpublicoetv.vercel.app/?id=espn
+#EXTINF:-1,ESPN 2
+https://sinalpublicoetv.vercel.app/?id=espn2
+#EXTINF:-1,ESPN 3
+https://sinalpublicoetv.vercel.app/?id=espn3
+#EXTINF:-1,ESPN 4
+https://sinalpublicoetv.vercel.app/?id=espn4
+#EXTINF:-1,ESPN 5
+https://sinalpublicoetv.vercel.app/?id=espn5
+#EXTINF:-1,ESPN 6
+https://sinalpublicoetv.vercel.app/?id=espn6
+#EXTINF:-1,Premiere
+https://sinalpublicoetv.vercel.app/?id=premiere
+#EXTINF:-1,Premiere 2
+https://sinalpublicoetv.vercel.app/?id=premiere2
+#EXTINF:-1,Premiere 3
+https://sinalpublicoetv.vercel.app/?id=premiere3
+#EXTINF:-1,Premiere 4
+https://sinalpublicoetv.vercel.app/?id=premiere4
+#EXTINF:-1,Premiere 5
+https://sinalpublicoetv.vercel.app/?id=premiere5
+#EXTINF:-1,Premiere 6
+https://sinalpublicoetv.vercel.app/?id=premiere6
+#EXTINF:-1,Premiere 7
+https://sinalpublicoetv.vercel.app/?id=premiere7
+#EXTINF:-1,Premiere 8
+https://sinalpublicoetv.vercel.app/?id=premiere8
+#EXTINF:-1,SporTV
+https://sinalpublicoetv.vercel.app/?id=sportv
+#EXTINF:-1,SporTV 2
+https://sinalpublicoetv.vercel.app/?id=sportv2
+#EXTINF:-1,SporTV 3
+https://sinalpublicoetv.vercel.app/?id=sportv3
+#EXTINF:-1,SporTV 4
+https://sinalpublicoetv.vercel.app/?id=sportv4
+#EXTINF:-1,HBO
+https://sinalpublicoetv.vercel.app/?id=hbo
+#EXTINF:-1,HBO 2
+https://sinalpublicoetv.vercel.app/?id=hbo2
+#EXTINF:-1,HBO Family
+https://sinalpublicoetv.vercel.app/?id=hbofamily
+#EXTINF:-1,HBO Mundi
+https://sinalpublicoetv.vercel.app/?id=hbomundi
+#EXTINF:-1,HBO Plus
+https://sinalpublicoetv.vercel.app/?id=hboplus
+#EXTINF:-1,HBO Pop
+https://sinalpublicoetv.vercel.app/?id=hbopop
+#EXTINF:-1,HBO Xtreme
+https://sinalpublicoetv.vercel.app/?id=hboxtreme
+#EXTINF:-1,HBO Signature
+https://sinalpublicoetv.vercel.app/?id=hbosignathure
+#EXTINF:-1,Telecine Premium
+https://sinalpublicoetv.vercel.app/?id=telecinepremium
+#EXTINF:-1,Telecine Action
+https://sinalpublicoetv.vercel.app/?id=telecineaction
+#EXTINF:-1,Telecine Cult
+https://sinalpublicoetv.vercel.app/?id=telecinecult
+#EXTINF:-1,Telecine Fun
+https://sinalpublicoetv.vercel.app/?id=telecinefun
+#EXTINF:-1,Telecine Pipoca
+https://sinalpublicoetv.vercel.app/?id=telecinepipoca
+#EXTINF:-1,Telecine Touch
+https://sinalpublicoetv.vercel.app/?id=telecinetouch
+#EXTINF:-1,Paramount+
+https://sinalpublicoetv.vercel.app/?id=paramountplus1
+#EXTINF:-1,Max
+https://sinalpublicoetv.vercel.app/?id=max1
+#EXTINF:-1,Disney+ 1
+https://sinalpublicoetv.vercel.app/?id=disneyplus1
+#EXTINF:-1,Disney+ 2
+https://sinalpublicoetv.vercel.app/?id=disneyplus2
+#EXTINF:-1,Prime Video 1
+https://sinalpublicoetv.vercel.app/?id=primevideo
+#EXTINF:-1,Prime Video 2
+https://sinalpublicoetv.vercel.app/?id=primevideo2
+#EXTINF:-1,Combate
+https://sinalpublicoetv.vercel.app/?id=combate
+#EXTINF:-1,UFC Fight Pass
+https://sinalpublicoetv.vercel.app/?id=ufcfightpass
+#EXTINF:-1,AMC
+https://sinalpublicoetv.vercel.app/?id=amc
+#EXTINF:-1,Animal Planet
+https://sinalpublicoetv.vercel.app/?id=animalplanet
+#EXTINF:-1,Megapix
+https://sinalpublicoetv.vercel.app/?id=megapix
+#EXTINF:-1,AXN
+https://sinalpublicoetv.vercel.app/?id=axn
+#EXTINF:-1,Space
+https://sinalpublicoetv.vercel.app/?id=space
+#EXTINF:-1,TNT
+https://sinalpublicoetv.vercel.app/?id=tnt
+#EXTINF:-1,Chaves 24H
+https://sinalpublicoetv.vercel.app/?id=24h_chaves
+    `;
+
+    let channelsList = [];
+    let currentIndex = 0;
+    let uiTimer = null;
+
+    function parseM3U(data) {
+      const lines = data.split('\n');
+      const channels = [];
+      let currentName = '';
+
+      lines.forEach(line => {
+        const l = line.trim();
+        if (l.startsWith('#EXTINF:')) {
+          const commaIndex = l.indexOf(',');
+          currentName = commaIndex !== -1 ? l.slice(commaIndex + 1).trim() : 'Canal sem nome';
+        } else if (l.startsWith('http')) {
+          channels.push({ name: currentName || 'Canal sem nome', url: l });
+          currentName = '';
+        }
+      });
+      return channels;
+    }
+
+    function renderChannels(channels) {
+      const container = document.getElementById('channels-container');
+      container.innerHTML = '';
+
+      channels.forEach((ch, index) => {
+        const card = document.createElement('div');
+        card.className = 'channel-card';
+        card.tabIndex = 0;
+        card.dataset.index = index;
+        card.innerHTML = `<span class="channel-number">${index + 1}</span>${ch.name}`;
+        
+        card.addEventListener('click', () => openPlayer(index));
+        container.appendChild(card);
+      });
+
+      document.getElementById('channel-count').textContent = `${channels.length} canais`;
+
+      const firstCard = container.querySelector('.channel-card');
+      if (firstCard) firstCard.focus();
+    }
+
+    function openPlayer(index) {
+      currentIndex = index;
+      const channel = channelsList[currentIndex];
+      document.getElementById('current-channel-title').textContent = `${currentIndex + 1}. ${channel.name}`;
+      
+      const container = document.getElementById('iframe-container');
+      container.innerHTML = `<iframe src="${channel.url}" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+      
+      const modal = document.getElementById('player-modal');
+      modal.classList.add('active');
+      modal.classList.remove('show-controls'); // Inicia com tela limpa
+    }
+
+    function closePlayer() {
+      const modal = document.getElementById('player-modal');
+      modal.classList.remove('active', 'show-controls');
+      document.getElementById('iframe-container').innerHTML = '';
+      clearTimeout(uiTimer);
+
+      const card = document.querySelector(`.channel-card[data-index="${currentIndex}"]`);
+      if (card) card.focus();
+    }
+
+    function showUI() {
+      const modal = document.getElementById('player-modal');
+      modal.classList.add('show-controls');
+      document.getElementById('btn-close').focus();
+
+      clearTimeout(uiTimer);
+      uiTimer = setTimeout(() => {
+        modal.classList.remove('show-controls');
+      }, 4000); // Esconde automaticamente após 4 segundos
+    }
+
+    function toggleUI() {
+      const modal = document.getElementById('player-modal');
+      if (modal.classList.contains('show-controls')) {
+        modal.classList.remove('show-controls');
+        clearTimeout(uiTimer);
+      } else {
+        showUI();
+      }
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+      }
+    }
+
+    document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
+    document.getElementById('btn-close').addEventListener('click', closePlayer);
+
+    // CONTROLE REMOTO & TECLADO
+    document.addEventListener('keydown', (e) => {
+      const modalActive = document.getElementById('player-modal').classList.contains('active');
+      
+      if (modalActive) {
+        // SETA PARA CIMA E PARA BAIXO OU CHANNEL UP/DOWN TROCAM DE CANAL
+        if (e.key === 'ArrowUp' || e.key === 'ChannelUp' || e.keyCode === 166) {
+          e.preventDefault();
+          currentIndex = (currentIndex - 1 + channelsList.length) % channelsList.length;
+          openPlayer(currentIndex);
+          return;
+        } 
+        
+        if (e.key === 'ArrowDown' || e.key === 'ChannelDown' || e.keyCode === 167) {
+          e.preventDefault();
+          currentIndex = (currentIndex + 1) % channelsList.length;
+          openPlayer(currentIndex);
+          return;
+        }
+
+        // TECLA OK / ENTER EXIBE / OCULTA O MENU
+        if (e.key === 'Enter' || e.keyCode === 13) {
+          if (!e.target.classList.contains('tv-btn')) {
+            e.preventDefault();
+            toggleUI();
+          }
+          return;
+        }
+
+        // VOLTAR / ESC FECHA O PLAYER
+        if (e.key === 'Escape' || e.key === 'Backspace' || e.keyCode === 461 || e.keyCode === 10009) {
+          e.preventDefault();
+          closePlayer();
+          return;
+        }
+      }
+    });
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').textContent = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      channelsList = parseM3U(m3uRawData);
+      renderChannels(channelsList);
+      setInterval(updateClock, 1000);
+      updateClock();
+    });
+  </script>
+</body>
+</html>
+
